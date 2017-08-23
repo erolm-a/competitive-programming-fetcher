@@ -23,7 +23,11 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Job
 import fetcher
 import logging
 import time
+import conf
+import database
 from datetime import datetime
+
+db = database.Database()
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -35,17 +39,20 @@ help_string = "Questo bot estrae un testo a caso dal CMS e da altri fonti. I tes
         
 all_chat_ids = set()
 
-def do_fetching(bot, job):
-    for chat_id in all_chat_ids:
-        bot.send_message(chat_id=chat_id, text="Dal CMS:\n{}".format(fetcher.fetch_OII()))
-    
+def send_fetch(bot, chat_id):
+    bot.send_message(chat_id=chat_id, text="Dal CMS:\n{}".
+            format(fetcher.fetch_OII()))
+
+def broadcast(bot, job):
+    for chat_id in db.get_chat_list():
+        fetch(bot, chat_id) 
     
 def start(bot, update):
-    print(update.message.chat_id)
+    chat_id = update.message.chat_id
     update.message.reply_text(help_string)
-    all_chat_ids.add(update.message.chat_id)
-    for chat_id in all_chat_ids:
-        bot.send_message(chat_id=chat_id, text="Dal CMS:\n{}".format(fetcher.fetch_OII()))
+    db.register_chat_id(chat_id)
+    db.flush()
+    send_fetch(bot, chat_id)
 
 def help(bot, update):
     update.message.reply_text(help_string)
@@ -55,14 +62,14 @@ def error(bot, update, error):
 
 def main():
     global bot
-    updater = Updater("SECRET_TOKEN")
+    updater = Updater(conf.SECRET_TOKEN)
     job_queue = updater.job_queue
     
     now = datetime.now()
     seconds_to_midnight = (now.replace(hour=23, minute=59, second=59, microsecond=0) - now).total_seconds()
     print("Secondi a mezzanotte: {}".format(seconds_to_midnight))
 
-    fetch_job = Job(do_fetching, 86400)
+    fetch_job = Job(broadcast, 86400)
     job_queue.put(fetch_job, next_t=seconds_to_midnight)
     
     # get the dispatcher
@@ -77,4 +84,7 @@ def main():
     updater.idle()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        exit()
