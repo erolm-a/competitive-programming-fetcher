@@ -27,7 +27,9 @@ import conf
 import database
 from datetime import datetime
 
+
 db = database.Database()
+
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -36,17 +38,18 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 help_string = "Questo bot estrae un testo a caso dal CMS e da altri fonti. I testi vengono estratti alle 0:00 di ogni giorno e sono automaticamente appesi"
-        
-all_chat_ids = set()
+    
 
 def send_fetch(bot, chat_id):
     bot.send_message(chat_id=chat_id, text="Dal CMS:\n{}".
             format(fetcher.fetch_OII()))
 
+
 def broadcast(bot, job):
     for chat_id in db.get_chat_list():
-        fetch(bot, chat_id) 
-    
+        send_fetch(bot, chat_id) 
+
+
 def start(bot, update):
     chat_id = update.message.chat_id
     update.message.reply_text(help_string)
@@ -54,11 +57,14 @@ def start(bot, update):
     db.flush()
     send_fetch(bot, chat_id)
 
+
 def help(bot, update):
     update.message.reply_text(help_string)
-    
+
+
 def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"' % (update, error))
+
 
 def main():
     global bot
@@ -69,8 +75,7 @@ def main():
     seconds_to_midnight = (now.replace(hour=23, minute=59, second=59, microsecond=0) - now).total_seconds()
     print("Secondi a mezzanotte: {}".format(seconds_to_midnight))
 
-    fetch_job = Job(broadcast, 86400)
-    job_queue.put(fetch_job, next_t=seconds_to_midnight)
+    job_queue.run_daily(broadcast, time=seconds_to_midnight)
     
     # get the dispatcher
     dp = updater.dispatcher

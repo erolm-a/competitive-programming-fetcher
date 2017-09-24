@@ -36,11 +36,12 @@ class Database:
         self._db.commit()
     
     def __del__(self):
-        flush(self)
+        self.flush()
         self._db.close()
     
     def register_chat_id(self, chat_id):
-        self._c.execute('INSERT INTO users ("chat_id") VALUES(?)', (chat_id,))
+        # If the element already exists, just ignore it
+        self._c.execute('INSERT OR IGNORE INTO users ("chat_id") VALUES(?)', (chat_id,))
 
     def get_chat_list(self):
         # what kind of error could this line raise?
